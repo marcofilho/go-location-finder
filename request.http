@@ -1,0 +1,11 @@
+@baseUrl = http://localhost:9000
+@cepEndpoint = /validate
+
+
+###
+POST {{baseUrl}}{{cepEndpoint}}
+Content-Type: application/json
+
+{
+    "cep": "23456-11"
+}
