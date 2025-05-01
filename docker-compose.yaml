@@ -1,0 +1,81 @@
+version: '3'
+services:
+  jaeger-all-in-one:
+    image: jaegertracing/all-in-one:latest
+    restart: always
+    ports:
+      - "16686:16686"
+      - "14268"
+      - "14250"
+  
+  zipkin-all-in-one:
+    image: openzipkin/zipkin:latest
+    restart: always
+    ports:
+      - "9411:9411"
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:latest
+    restart: always
+    volumes:
+      - ./.docker/prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    restart: always
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./.docker/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "1888:1888"   # pprof extension
+      - "8888:8888"   # Prometheus metrics exposed by the collector
+      - "8889:8889"   # Prometheus exporter metrics
+      - "13133:13133" # health_check extension
+      - "4317:4317"   # OTLP gRPC receiver
+      - "55679:55679" # zpages extension
+
+  go-locaton-validator:
+    container_name: go-locaton-validator
+    build:
+      context: .
+    environment:
+      - TITLE=Microservice go-location-validator
+      - CONTENT=This is a demo of a microservice
+      - BACKGROUND_COLOR=blue
+      - EXTERNAL_CALL_URL=http://go-location-finder:8080/cep
+      - EXTERNAL_CALL_METHOD=POST
+      - RESPONSE_TIME=2000
+      - REQUEST_NAME_OTEL=microservice-go-location-validator
+      - OTEL_SERVICE_NAME=microservice-go-location-validator
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - HTTP_PORT=:9000
+    ports:
+      - "9000:9000"
+    depends_on:
+      - jaeger-all-in-one
+      - zipkin-all-in-one
+      - prometheus
+      - otel-collector
+
+  go-location-finder:
+    container_name: go-location-finder
+    build:
+      context: .
+    environment:
+      - TITLE=Microservice go-location-finder
+      - CONTENT=This is a demo of a microservice
+      - RESPONSE_TIME=1000
+      - REQUEST_NAME_OTEL=go-location-finder
+      - OTEL_SERVICE_NAME=go-location-finder
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - HTTP_PORT=:8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      - jaeger-all-in-one
+      - zipkin-all-in-one
+      - prometheus
+      - otel-collector
