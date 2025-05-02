@@ -92,6 +92,23 @@ func main() {
 		RequestNameOTEL:    viper.GetString("REQUEST_NAME_OTEL"),
 		OTELTracer:         tracer,
 	}
+	viper.SetConfigFile((".env"))
+	viper.AutomaticEnv()
+	err = viper.ReadInConfig()
+	if err != nil {
+		log.Fatal("Error reading config file", err)
+	}
+
+	templateData = &web.TemplateData{
+		Title:              viper.GetString("TITLE"),
+		BackgroundColor:    viper.GetString("BACKGROUND_COLOR"),
+		ResponseTime:       time.Duration(viper.GetInt("RESPONSE_TIME")),
+		ExternalCallURL:    viper.GetString("EXTERNAL_CALL_URL"),
+		ExternalCallMethod: viper.GetString("EXTERNAL_CALL_METHOD"),
+		RequestNameOTEL:    viper.GetString("REQUEST_NAME_OTEL"),
+		OTELTracer:         tracer,
+	}
+
 	server := web.NewServer(templateData)
 	router := server.CreateServer()
 

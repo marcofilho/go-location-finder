@@ -7,5 +7,5 @@ POST {{baseUrl}}{{cepEndpoint}}
 Content-Type: application/json
 
 {
-    "cep": "23456-11"
+    "cep": "23456-110"
 }
