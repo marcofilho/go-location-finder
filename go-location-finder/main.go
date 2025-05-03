@@ -179,7 +179,6 @@ func loadConfig() (*Conf, error) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Config loaded: %+v\n", cfg)
 
 	return &cfg, err
 }
@@ -197,8 +196,6 @@ func cepHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
-	apiKey := config.API_KEY
 
 	c, err := getCep(cep.Cep)
 	if err != nil || c == (Cep{}) {
@@ -220,10 +217,7 @@ func cepHandler(w http.ResponseWriter, r *http.Request) {
 
 	location := removeAccents(c.Localidade)
 
-	fmt.Println("Location: ", location)
-	fmt.Println("API Key: ", apiKey)
-
-	weather, err := getWeather(location, apiKey)
+	weather, err := getWeather(location, config.API_KEY)
 	if err != nil {
 		fmt.Printf("Error fetching weather data: %v\n", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -236,6 +230,8 @@ func cepHandler(w http.ResponseWriter, r *http.Request) {
 		Temp_F: convertToFahrenheit(weather.Current.TempC),
 		Temp_K: convertToKelvin(weather.Current.TempC),
 	}
+
+	fmt.Printf("Weather data: %+v\n", response)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)

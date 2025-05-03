@@ -7,14 +7,6 @@ POST {{baseUrl}}{{cepEndpoint}}
 Content-Type: application/json
 
 {
-    "cep": "23456-110"
+    "cep": "29090-040"
 }
 
-###
-
-POST http://localhost:8080/cep
-Content-Type: application/json
-
-{
-    "cep": "12237-010"
-}

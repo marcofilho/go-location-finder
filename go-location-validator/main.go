@@ -37,7 +37,7 @@ func init() {
 	viper.SetDefault("HTTP_PORT", ":9000")
 }
 
-func initProvider(serviceName, collectorURL string) (func(context.Context) error, error) {
+func initProvider(serviceName string) (func(context.Context) error, error) {
 	ctx := context.Background()
 
 	fmt.Println("OTEL_EXPORTER_OTLP_ENDPOINT:", viper.GetString("OTEL_EXPORTER_OTLP_ENDPOINT"))
@@ -51,12 +51,14 @@ func initProvider(serviceName, collectorURL string) (func(context.Context) error
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	conn, err := grpc.DialContext(ctx, collectorURL,
+	endpoint := viper.GetString("OTEL_EXPORTER_OTLP_ENDPOINT")
+	fmt.Println("Tentando conectar no collector:", endpoint)
+
+	conn, err := grpc.DialContext(ctx, endpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC connection to collector: %w", err)
@@ -82,13 +84,14 @@ func initProvider(serviceName, collectorURL string) (func(context.Context) error
 }
 
 func main() {
+	fmt.Print("Starting go-location-validator...\n")
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	shutdown, err := initProvider(viper.GetString("OTEL_SERVICE_NAME"), viper.GetString("OTEL_EXPORTER_OTLP_ENDPOINT"))
+	shutdown, err := initProvider(viper.GetString("OTEL_SERVICE_NAME"))
 	if err != nil {
 		log.Fatal(err)
 	}

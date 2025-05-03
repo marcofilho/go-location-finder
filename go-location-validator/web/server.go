@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -70,45 +71,43 @@ func (h *Webserver) HandleRequest(w http.ResponseWriter, r *http.Request) {
 
 	time.Sleep(time.Millisecond * h.TemplateData.ResponseTime)
 
-	if h.TemplateData.ExternalCallURL != "" {
-		var req *http.Request
-		var cep Request
+	var req *http.Request
+	var cep Request
 
-		err := json.NewDecoder(r.Body).Decode(&cep)
-		if err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			return
-		}
-
-		if cep.Cep == "" {
-			http.Error(w, "CEP is required", http.StatusBadRequest)
-			return
-		}
-
-		if len(cep.Cep) < 9 {
-			http.Error(w, "CEP must be at least 9 characters long", http.StatusUnprocessableEntity)
-			return
-		}
-
-		req, err = http.NewRequestWithContext(ctx, "POST", h.TemplateData.ExternalCallURL, nil)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		callExternalAPI(w, req)
+	err := json.NewDecoder(r.Body).Decode(&cep)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
 	}
-}
 
-func callExternalAPI(w http.ResponseWriter, r *http.Request) {
-	cep := r.URL.Query().Get("cep")
-	apiURL := r.RequestURI
-	payload := map[string]string{"cep": cep}
+	if cep.Cep == "" {
+		http.Error(w, "CEP is required", http.StatusBadRequest)
+		return
+	}
+
+	if len(cep.Cep) < 9 {
+		http.Error(w, "Invalid ZipCode", http.StatusUnprocessableEntity)
+		return
+	}
+
+	payload := map[string]string{"cep": cep.Cep}
 	body, _ := json.Marshal(payload)
+	req, err = http.NewRequestWithContext(ctx, "POST", h.TemplateData.ExternalCallURL, bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
+
+	apiURL := req.URL.String()
 
 	resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(body))
 	if err != nil {
-		http.Error(w, "Failed to call external API", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to call external API"})
 		return
 	}
 	defer resp.Body.Close()
@@ -117,14 +116,60 @@ func callExternalAPI(w http.ResponseWriter, r *http.Request) {
 		errBody, _ := io.ReadAll(resp.Body)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
-		w.Write(errBody)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": fmt.Sprintf("%s", string(errBody)),
+		})
 		return
 	}
 
 	var apiResp Response
 	err = json.NewDecoder(resp.Body).Decode(&apiResp)
 	if err != nil {
-		http.Error(w, "Failed to decode external API response", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to decode external API response"})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(apiResp)
+}
+
+func callExternalAPI(w http.ResponseWriter, r *http.Request) {
+	var reqBody Request
+	json.NewDecoder(r.Body).Decode(&reqBody)
+	cep := reqBody.Cep
+
+	apiURL := "http://localhost:8080/cep"
+	payload := map[string]string{"cep": cep}
+	body, _ := json.Marshal(payload)
+
+	resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to call external API"})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		errBody, _ := io.ReadAll(resp.Body)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": fmt.Sprintf("%s", string(errBody)),
+		})
+		return
+	}
+
+	var apiResp Response
+	err = json.NewDecoder(resp.Body).Decode(&apiResp)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to decode external API response"})
 		return
 	}
 
