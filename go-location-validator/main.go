@@ -40,8 +40,6 @@ func init() {
 func initProvider(serviceName string) (func(context.Context) error, error) {
 	ctx := context.Background()
 
-	fmt.Println("OTEL_EXPORTER_OTLP_ENDPOINT:", viper.GetString("OTEL_EXPORTER_OTLP_ENDPOINT"))
-
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			semconv.ServiceName(serviceName),
@@ -55,7 +53,6 @@ func initProvider(serviceName string) (func(context.Context) error, error) {
 	defer cancel()
 
 	endpoint := viper.GetString("OTEL_EXPORTER_OTLP_ENDPOINT")
-	fmt.Println("Tentando conectar no collector:", endpoint)
 
 	conn, err := grpc.DialContext(ctx, endpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),

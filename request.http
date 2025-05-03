@@ -1,9 +1,10 @@
-@baseUrl = http://localhost:9000
+@baseUrlDev = http://localhost:9000
+@baseUrlProd = http://go-location-validator:9000
 @cepEndpoint = /validate
 
 
 ###
-POST {{baseUrl}}{{cepEndpoint}}
+POST {{baseUrlProd}}{{cepEndpoint}}
 Content-Type: application/json
 
 {

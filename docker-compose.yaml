@@ -37,29 +37,29 @@ services:
       - "4317:4317" # OTLP gRPC receiver
       - "55679:55679" # zpages extension
 
-  # go-locaton-validator:
-  #   container_name: go-locaton-validator
-  #   build:
-  #     context: ./go-location-validator
-  #     dockerfile: Dockerfile
-  #   environment:
-  #     - TITLE=Microservice go-location-validator
-  #     - CONTENT=This is a demo of a microservice
-  #     - BACKGROUND_COLOR=blue
-  #     - EXTERNAL_CALL_URL=http://go-location-finder:8080/cep
-  #     - EXTERNAL_CALL_METHOD=POST
-  #     - RESPONSE_TIME=2000
-  #     - REQUEST_NAME_OTEL=microservice-go-location-validator
-  #     - OTEL_SERVICE_NAME=microservice-go-location-validator
-  #     - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
-  #     - HTTP_PORT=:9000
-  #   ports:
-  #     - "9000:9000"
-  #   depends_on:
-  #     - jaeger-all-in-one
-  #     - zipkin-all-in-one
-  #     - prometheus
-  #     - otel-collector
+  go-location-validator:
+    container_name: go-locaton-validator
+    build:
+      context: ./go-location-validator
+      dockerfile: Dockerfile
+    environment:
+      - TITLE=Microservice go-location-validator
+      - CONTENT=This is a demo of a microservice
+      - BACKGROUND_COLOR=blue
+      - EXTERNAL_CALL_URL=http://go-location-finder:8080/cep
+      - EXTERNAL_CALL_METHOD=POST
+      - RESPONSE_TIME=2000
+      - REQUEST_NAME_OTEL=microservice-go-location-validator
+      - OTEL_SERVICE_NAME=microservice-go-location-validator
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - HTTP_PORT=:9000
+    ports:
+      - "9000:9000"
+    depends_on:
+      - jaeger-all-in-one
+      - zipkin-all-in-one
+      - prometheus
+      - otel-collector
 
   go-location-finder:
     container_name: go-location-finder
