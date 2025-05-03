@@ -2,24 +2,22 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Go App",
+            "name": "Debug Go Validator",
             "type": "go",
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}/go-location-validator/main.go",
             "env": {
-                "TITLE":"Microservice go-location-validator",
-                "CONTENT":"This is a demo of a microservice",
-                "BACKGROUND_COLOR":"blue",
-                "EXTERNAL_CALL_URL":"http://go-location-finder:8080/cep",
-                "EXTERNAL_CALL_METHOD":"POST",
-                "RESPONSE_TIME":"2000",
-                "REQUEST_NAME_OTEL":"microservice-go-location-validator",
-                "OTEL_SERVICE_NAME":"microservice-go-location-validator",
-                "OTEL_EXPORTER_OTLP_ENDPOINT":"otel-collector:4317"
-            },
-            "args": [],
-            "showLog": true
+                "TITLE": "Microservice go-location-validator",
+                "BACKGROUND_COLOR": "blue",
+                "RESPONSE_TIME": "2000",
+                "EXTERNAL_CALL_URL": "http://go-location-finder:8080/cep",
+                "EXTERNAL_CALL_METHOD": "POST",
+                "REQUEST_NAME_OTEL": "microservice-go-location-validator",
+                "OTEL_SERVICE_NAME": "microservice-go-location-validator",
+                "OTEL_EXPORTER_OTLP_ENDPOINT": "otel-collector:4317",
+                "HTTP_PORT": ":9000"
+            }
         }
     ]
 }

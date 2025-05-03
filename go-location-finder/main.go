@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"unicode"
 
 	"github.com/spf13/viper"
@@ -20,8 +21,15 @@ type Request struct {
 	Cep string `json:"cep"`
 }
 
-type conf struct {
-	API_KEY string `mapstructure:"API_KEY"`
+type Conf struct {
+	API_KEY                     string `mapstructure:"API_KEY"`
+	TITLE                       string `mapstructure:"TITLE"`
+	CONTENT                     string `mapstructure:"CONTENT"`
+	RESPONSE_TIME               string `mapstructure:"RESPONSE_TIME"`
+	REQUEST_NAME_OTEL           string `mapstructure:"REQUEST_NAME_OTEL"`
+	OTEL_SERVICE_NAME           string `mapstructure:"OTEL_SERVICE_NAME"`
+	OTEL_EXPORTER_OTLP_ENDPOINT string `mapstructure:"OTEL_EXPORTER_OTLP_ENDPOINT"`
+	HTTP_PORT                   string `mapstructure:"HTTP_PORT"`
 }
 
 type Location struct {
@@ -152,25 +160,28 @@ func removeAccents(s string) string {
 	return output
 }
 
-func loadConfig(path string) (*conf, error) {
-	var cfg *conf
-	viper.SetConfigName("app_config")
-	viper.SetConfigType("env")
-	viper.AddConfigPath(path)
-	viper.SetConfigFile(".env")
+func loadConfig() (*Conf, error) {
+	var cfg Conf
+
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
-	err := viper.ReadInConfig()
+	viper.BindEnv("API_KEY")
+	viper.BindEnv("TITLE")
+	viper.BindEnv("CONTENT")
+	viper.BindEnv("RESPONSE_TIME")
+	viper.BindEnv("REQUEST_NAME_OTEL")
+	viper.BindEnv("OTEL_SERVICE_NAME")
+	viper.BindEnv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	viper.BindEnv("HTTP_PORT")
+
+	err := viper.Unmarshal(&cfg)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("Config loaded: %+v\n", cfg)
 
-	err = viper.Unmarshal(&cfg)
-	if err != nil {
-		panic(err)
-	}
-
-	return cfg, err
+	return &cfg, err
 }
 
 func cepHandler(w http.ResponseWriter, r *http.Request) {
@@ -181,7 +192,7 @@ func cepHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	config, err := loadConfig(".")
+	config, err := loadConfig()
 	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
@@ -209,8 +220,12 @@ func cepHandler(w http.ResponseWriter, r *http.Request) {
 
 	location := removeAccents(c.Localidade)
 
+	fmt.Println("Location: ", location)
+	fmt.Println("API Key: ", apiKey)
+
 	weather, err := getWeather(location, apiKey)
 	if err != nil {
+		fmt.Printf("Error fetching weather data: %v\n", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}

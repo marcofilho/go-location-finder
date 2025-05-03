@@ -40,8 +40,8 @@ services:
   # go-locaton-validator:
   #   container_name: go-locaton-validator
   #   build:
-  #     context: .
-  #     dockerfile: go-location-validator/Dockerfile
+  #     context: ./go-location-validator
+  #     dockerfile: Dockerfile
   #   environment:
   #     - TITLE=Microservice go-location-validator
   #     - CONTENT=This is a demo of a microservice
@@ -64,8 +64,10 @@ services:
   go-location-finder:
     container_name: go-location-finder
     build:
-      context: .
-      dockerfile: go-location-finder/Dockerfile
+      context: ./go-location-finder
+      dockerfile: Dockerfile
+    env_file:
+      - ./go-location-finder/.env
     environment:
       - TITLE=Microservice go-location-finder
       - CONTENT=This is a demo of a microservice
@@ -74,6 +76,7 @@ services:
       - OTEL_SERVICE_NAME=go-location-finder
       - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
       - HTTP_PORT=:8080
+      - API_KEY=2a26f3cfb81149fc8a3183738252804
     ports:
       - "8080:8080"
     depends_on:

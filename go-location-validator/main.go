@@ -22,8 +22,25 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 )
 
+func init() {
+	viper.AutomaticEnv()
+
+	viper.SetDefault("OTEL_SERVICE_NAME", "go-location-validator")
+	viper.SetDefault("OTEL_EXPORTER_OTLP_ENDPOINT", "otel-collector:4317")
+	viper.SetDefault("TITLE", "Microservice go-location-validator")
+	viper.SetDefault("CONTENT", "This is a demo of a microservice")
+	viper.SetDefault("BACKGROUND_COLOR", "blue")
+	viper.SetDefault("EXTERNAL_CALL_URL", "http://go-location-finder:8080/cep")
+	viper.SetDefault("EXTERNAL_CALL_METHOD", "POST")
+	viper.SetDefault("RESPONSE_TIME", 2000)
+	viper.SetDefault("REQUEST_NAME_OTEL", "microservice-go-location-validator")
+	viper.SetDefault("HTTP_PORT", ":9000")
+}
+
 func initProvider(serviceName, collectorURL string) (func(context.Context) error, error) {
 	ctx := context.Background()
+
+	fmt.Println("OTEL_EXPORTER_OTLP_ENDPOINT:", viper.GetString("OTEL_EXPORTER_OTLP_ENDPOINT"))
 
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
@@ -84,22 +101,6 @@ func main() {
 	tracer := otel.Tracer("microservice-tracer")
 
 	templateData := &web.TemplateData{
-		Title:              viper.GetString("TITLE"),
-		BackgroundColor:    viper.GetString("BACKGROUND_COLOR"),
-		ResponseTime:       time.Duration(viper.GetInt("RESPONSE_TIME")),
-		ExternalCallURL:    viper.GetString("EXTERNAL_CALL_URL"),
-		ExternalCallMethod: viper.GetString("EXTERNAL_CALL_METHOD"),
-		RequestNameOTEL:    viper.GetString("REQUEST_NAME_OTEL"),
-		OTELTracer:         tracer,
-	}
-	viper.SetConfigFile((".env"))
-	viper.AutomaticEnv()
-	err = viper.ReadInConfig()
-	if err != nil {
-		log.Fatal("Error reading config file", err)
-	}
-
-	templateData = &web.TemplateData{
 		Title:              viper.GetString("TITLE"),
 		BackgroundColor:    viper.GetString("BACKGROUND_COLOR"),
 		ResponseTime:       time.Duration(viper.GetInt("RESPONSE_TIME")),
