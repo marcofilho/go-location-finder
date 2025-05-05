@@ -67,14 +67,7 @@ A microservices project in Go for querying ZIP code and weather information, ful
   ```sh
   curl -X POST http://localhost:9000/validate \
     -H "Content-Type: application/json" \
-    -d '{"cep": "29090-040"}'
-  ```
-
-- **Direct query to finder:**
-  ```sh
-  curl -X POST http://localhost:8080/cep \
-    -H "Content-Type: application/json" \
-    -d '{"cep": "29090-040"}'
+    -d '{"cep": "12222-050"}'
   ```
 
 ### 2. **Using `.http` file (VS Code REST Client):**
@@ -86,7 +79,7 @@ POST http://localhost:9000/validate
 Content-Type: application/json
 
 {
-  "cep": "29090-040"
+  "cep": "12222-050"
 }
 ```
 
