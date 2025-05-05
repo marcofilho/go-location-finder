@@ -38,7 +38,7 @@ services:
       - "55679:55679" # zpages extension
 
   go-location-validator:
-    container_name: go-locaton-validator
+    container_name: go-location-validator
     build:
       context: ./go-location-validator
       dockerfile: Dockerfile

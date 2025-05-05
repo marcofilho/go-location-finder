@@ -11,8 +11,6 @@ import (
 
 	"github.com/marcofilho/go-location-finder/go-location-validation/web"
 	"github.com/spf13/viper"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -25,16 +23,16 @@ import (
 func init() {
 	viper.AutomaticEnv()
 
-	viper.SetDefault("OTEL_SERVICE_NAME", "go-location-validator")
-	viper.SetDefault("OTEL_EXPORTER_OTLP_ENDPOINT", "otel-collector:4317")
-	viper.SetDefault("TITLE", "Microservice go-location-validator")
-	viper.SetDefault("CONTENT", "This is a demo of a microservice")
-	viper.SetDefault("BACKGROUND_COLOR", "blue")
-	viper.SetDefault("EXTERNAL_CALL_URL", "http://go-location-finder:8080/cep")
-	viper.SetDefault("EXTERNAL_CALL_METHOD", "POST")
-	viper.SetDefault("RESPONSE_TIME", 2000)
-	viper.SetDefault("REQUEST_NAME_OTEL", "microservice-go-location-validator")
-	viper.SetDefault("HTTP_PORT", ":9000")
+	// viper.SetDefault("OTEL_SERVICE_NAME", "go-location-validator")
+	// viper.SetDefault("OTEL_EXPORTER_OTLP_ENDPOINT", "otel-collector:4317")
+	// viper.SetDefault("TITLE", "Microservice go-location-validator")
+	// viper.SetDefault("CONTENT", "This is a demo of a microservice")
+	// viper.SetDefault("BACKGROUND_COLOR", "blue")
+	// viper.SetDefault("EXTERNAL_CALL_URL", "http://go-location-finder:8080/cep")
+	// viper.SetDefault("EXTERNAL_CALL_METHOD", "POST")
+	// viper.SetDefault("RESPONSE_TIME", 2000)
+	// viper.SetDefault("REQUEST_NAME_OTEL", "microservice-go-location-validator")
+	// viper.SetDefault("HTTP_PORT", ":9000")
 }
 
 func initProvider(serviceName string) (func(context.Context) error, error) {
@@ -52,16 +50,7 @@ func initProvider(serviceName string) (func(context.Context) error, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	endpoint := viper.GetString("OTEL_EXPORTER_OTLP_ENDPOINT")
-
-	conn, err := grpc.DialContext(ctx, endpoint,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create gRPC connection to collector: %w", err)
-	}
-
-	traceExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))
+	traceExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithInsecure())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
 	}
