@@ -70,7 +70,6 @@ func initProvider(serviceName string) (func(context.Context) error, error) {
 }
 
 func main() {
-	fmt.Print("Starting go-location-validator...\n")
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt)
 

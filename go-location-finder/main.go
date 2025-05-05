@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,6 +16,13 @@ import (
 	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
 	"golang.org/x/text/unicode/norm"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 )
 
 type Request struct {
@@ -99,30 +107,89 @@ type Cep struct {
 	Siafi       string `json:"siafi"`
 }
 
+func initTracerProvider(serviceName, otlpEndpoint string) (func(context.Context) error, error) {
+	ctx := context.Background()
+	res, err := resource.New(ctx,
+		resource.WithAttributes(
+			semconv.ServiceName(serviceName),
+		),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create resource: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 10_000_000_000)
+	defer cancel()
+
+	traceExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithInsecure(), otlptracegrpc.WithEndpoint(otlpEndpoint))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
+	}
+
+	bsp := sdktrace.NewBatchSpanProcessor(traceExporter)
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+		sdktrace.WithResource(res),
+		sdktrace.WithSpanProcessor(bsp),
+	)
+
+	otel.SetTracerProvider(tracerProvider)
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+
+	return tracerProvider.Shutdown, nil
+}
+
 func main() {
+	cfg, err := loadConfig()
+	if err != nil {
+		log.Fatalf("failed to load config: %v", err)
+	}
+
+	shutdown, err := initTracerProvider(cfg.OTEL_SERVICE_NAME, cfg.OTEL_EXPORTER_OTLP_ENDPOINT)
+	if err != nil {
+		log.Fatalf("failed to init tracer: %v", err)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10_000_000_000)
+		defer cancel()
+		if err := shutdown(ctx); err != nil {
+			log.Printf("failed to shutdown tracer provider: %v", err)
+		}
+	}()
+
 	http.HandleFunc("/cep", cepHandler)
-	port := ":8080"
+	port := cfg.HTTP_PORT
+	if port == "" {
+		port = ":8080"
+	}
 	log.Printf("Listening on port %s", port)
 	http.ListenAndServe(port, nil)
 }
 
-func getCep(cep string) (Cep, error) {
+func getCep(ctx context.Context, cep string) (Cep, error) {
+	tracer := otel.Tracer("go-location-finder")
+	ctx, span := tracer.Start(ctx, "getCep")
+	defer span.End()
+
 	req, err := http.Get(fmt.Sprintf("http://viacep.com.br/ws/%s/json/", cep))
 	if err != nil {
 		return Cep{}, err
 	}
+	defer req.Body.Close()
 
 	var c Cep
 	err = json.NewDecoder(req.Body).Decode(&c)
 	if err != nil {
 		return Cep{}, err
 	}
-	defer req.Body.Close()
-
 	return c, nil
 }
 
-func getWeather(city, apiKey string) (Weather, error) {
+func getWeather(ctx context.Context, city, apiKey string) (Weather, error) {
+	tracer := otel.Tracer("go-location-finder")
+	ctx, span := tracer.Start(ctx, "getWeather")
+	defer span.End()
+
 	encodedCity := url.QueryEscape(city)
 	url := fmt.Sprintf("http://api.weatherapi.com/v1/current.json?key=%s&q=%s", apiKey, encodedCity)
 
@@ -184,6 +251,12 @@ func loadConfig() (*Conf, error) {
 }
 
 func cepHandler(w http.ResponseWriter, r *http.Request) {
+	carrier := propagation.HeaderCarrier(r.Header)
+	ctx := otel.GetTextMapPropagator().Extract(r.Context(), carrier)
+	tracer := otel.Tracer("go-location-finder")
+	ctx, span := tracer.Start(ctx, "cepHandler")
+	defer span.End()
+
 	var cep Request
 	err := json.NewDecoder(r.Body).Decode(&cep)
 	if err != nil {
@@ -197,7 +270,7 @@ func cepHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c, err := getCep(cep.Cep)
+	c, err := getCep(ctx, cep.Cep)
 	if err != nil || c == (Cep{}) {
 		http.Error(w, "Cannot find zipcode", http.StatusNotFound)
 		return
@@ -217,7 +290,7 @@ func cepHandler(w http.ResponseWriter, r *http.Request) {
 
 	location := removeAccents(c.Localidade)
 
-	weather, err := getWeather(location, config.API_KEY)
+	weather, err := getWeather(ctx, location, config.API_KEY)
 	if err != nil {
 		fmt.Printf("Error fetching weather data: %v\n", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -235,5 +308,4 @@ func cepHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
-
 }
