@@ -45,6 +45,7 @@ Go microservice for ZIP code and weather lookup, instrumented with OpenTelemetry
 
 2. **Set up environment variables:**
 
+   - You must create your own API KEY at https://www.weatherapi.com/
    - Create a `.env` file inside the `go-location-finder` folder:
      ```
      API_KEY=your_weatherapi_key
