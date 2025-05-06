@@ -22,22 +22,10 @@ import (
 
 func init() {
 	viper.AutomaticEnv()
-
-	// viper.SetDefault("OTEL_SERVICE_NAME", "go-location-validator")
-	// viper.SetDefault("OTEL_EXPORTER_OTLP_ENDPOINT", "otel-collector:4317")
-	// viper.SetDefault("TITLE", "Microservice go-location-validator")
-	// viper.SetDefault("CONTENT", "This is a demo of a microservice")
-	// viper.SetDefault("BACKGROUND_COLOR", "blue")
-	// viper.SetDefault("EXTERNAL_CALL_URL", "http://go-location-finder:8080/cep")
-	// viper.SetDefault("EXTERNAL_CALL_METHOD", "POST")
-	// viper.SetDefault("RESPONSE_TIME", 2000)
-	// viper.SetDefault("REQUEST_NAME_OTEL", "microservice-go-location-validator")
-	// viper.SetDefault("HTTP_PORT", ":9000")
 }
 
-func initProvider(serviceName string) (func(context.Context) error, error) {
+func initTracerProvider(serviceName, otlpEndpoint string) (func(context.Context) error, error) {
 	ctx := context.Background()
-
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			semconv.ServiceName(serviceName),
@@ -50,12 +38,15 @@ func initProvider(serviceName string) (func(context.Context) error, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	traceExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithInsecure())
+	exporter, err := otlptracegrpc.New(ctx,
+		otlptracegrpc.WithInsecure(),
+		otlptracegrpc.WithEndpoint(otlpEndpoint),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
 	}
 
-	bsp := sdktrace.NewBatchSpanProcessor(traceExporter)
+	bsp := sdktrace.NewBatchSpanProcessor(exporter)
 	tracerProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithSampler(sdktrace.AlwaysSample()),
 		sdktrace.WithResource(res),
@@ -63,7 +54,6 @@ func initProvider(serviceName string) (func(context.Context) error, error) {
 	)
 
 	otel.SetTracerProvider(tracerProvider)
-
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 
 	return tracerProvider.Shutdown, nil
@@ -76,7 +66,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	shutdown, err := initProvider(viper.GetString("OTEL_SERVICE_NAME"))
+	shutdown, err := initTracerProvider(viper.GetString("OTEL_SERVICE_NAME"), viper.GetString("OTEL_EXPORTER_OTLP_ENDPOINT"))
 	if err != nil {
 		log.Fatal(err)
 	}
