@@ -1,26 +1,19 @@
 services:
-  jaeger-all-in-one:
-    image: jaegertracing/all-in-one:latest
-    restart: always
-    ports:
-      - "16686:16686" # Jaeger UI
-      - "14268:14268" # Jaeger collector HTTP
-      - "14250:14250" # Jaeger gRPC
-
   zipkin-all-in-one:
     image: openzipkin/zipkin:latest
+    container_name: zipkin
     restart: always
     ports:
       - "9411:9411" # Zipkin UI
 
   otel-collector:
-    image: otel/opentelemetry-collector:latest
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
     restart: always
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
       - ./.docker/otel-collector-config.yaml:/etc/otel-collector-config.yaml
     depends_on:
-      - jaeger-all-in-one
       - zipkin-all-in-one
     ports:
       - "4317:4317" # OTLP gRPC receiver
@@ -44,7 +37,6 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - jaeger-all-in-one
       - zipkin-all-in-one
       - otel-collector
 
