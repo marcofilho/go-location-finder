@@ -80,12 +80,7 @@ func (h *Webserver) HandleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if cep.Cep == "" {
-		http.Error(w, "CEP is required", http.StatusBadRequest)
-		return
-	}
-
-	if len(cep.Cep) < 9 {
+	if cep.Cep == "" || len(cep.Cep) < 8 {
 		http.Error(w, "Invalid ZipCode", http.StatusUnprocessableEntity)
 		return
 	}
